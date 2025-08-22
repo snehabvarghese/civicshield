@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CivicShield - Accessibility+</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Style for the pulsing SOS button animation */
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+                box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.7);
+            }
+            50% {
+                transform: scale(1.05);
+                box-shadow: 0 0 0 20px rgba(220, 38, 38, 0);
+            }
+        }
+        .animate-pulse-sos {
+            animation: pulse 2s infinite;
+        }
+        /* Style for the voice recording indicator */
+        .recording-indicator {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80px;
+            height: 80px;
+            background-color: rgba(220, 38, 38, 0.8);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            z-index: 50;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800 antialiased">
+
+    <!-- Main Container -->
+    <div class="flex flex-col h-screen">
+
+        <!-- Header -->
+        <header class="bg-white shadow-md p-4 flex justify-between items-center z-30">
+            <h1 class="text-3xl font-bold text-indigo-600">CivicShield</h1>
+            <button id="profile-button" class="text-gray-600 hover:text-indigo-600" aria-label="User Profile">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+            </button>
+        </header>
+
+        <!-- Map and Controls Container -->
+        <div class="flex-grow relative">
+            <!-- Map -->
+            <div id="map" class="h-full w-full bg-gray-300"></div>
+
+            <!-- Search, Filter, and Voice Controls -->
+            <div class="absolute top-4 left-4 bg-white p-4 rounded-lg shadow-lg w-full max-w-sm z-10 flex flex-col space-y-4">
+                <div class="relative">
+                    <input type="text" id="search-input" placeholder="Search for a location..." class="w-full p-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <button id="voice-report-button" class="absolute top-1/2 right-2 -translate-y-1/2 text-gray-500 hover:text-indigo-600" aria-label="Report inaccessible location by voice">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
+                    </button>
+                </div>
+                <div>
+                    <label for="filter-accessibility" class="block text-sm font-medium text-gray-700">Filter by Disability-Friendliness</label>
+                    <select id="filter-accessibility" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
+                        <option>Show All</option>
+                        <option>Highly Rated (4+ Stars)</option>
+                        <option>Wheelchair Accessible</option>
+                        <option>Braille Signage</option>
+                        <option>Accessible Restrooms</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Building Details Panel -->
+            <div id="building-details" class="absolute bottom-0 left-0 right-0 bg-white p-6 rounded-t-2xl shadow-2xl transform translate-y-full transition-transform duration-300 ease-in-out z-20 max-h-[60vh] overflow-y-auto">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 id="building-name" class="text-2xl font-bold">Building Name</h2>
+                    <button id="close-details" class="text-gray-500 hover:text-gray-800" aria-label="Close details panel">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                </div>
+                <div id="building-rating" class="flex items-center mb-2"></div>
+                <p id="building-address" class="text-gray-600 mb-4"></p>
+                <div id="accessibility-features" class="space-y-3"></div>
+                <button id="rate-building-btn" class="mt-6 w-full bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700 transition-colors font-semibold">Rate this Building</button>
+            </div>
+            
+            <!-- Rating Modal -->
+            <div id="rating-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-40 p-4">
+                <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-md">
+                    <h3 class="text-2xl font-bold mb-6">Rate Building's Accessibility</h3>
+                    <div class="mb-4">
+                        <label class="block text-gray-700 mb-2">Overall Rating</label>
+                        <div id="modal-star-rating" class="flex space-x-1">
+                            <!-- Stars will be generated by JS -->
+                        </div>
+                    </div>
+                    <textarea id="rating-comment" class="w-full p-2 border rounded-md" rows="4" placeholder="Share details about accessibility features or barriers..."></textarea>
+                    <div class="mt-6 flex justify-end space-x-3">
+                        <button id="cancel-rating" class="px-6 py-2 bg-gray-200 rounded-md hover:bg-gray-300 font-medium">Cancel</button>
+                        <button id="submit-rating" class="px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 font-medium">Submit</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Custom Notification/Alert Box -->
+            <div id="notification" class="hidden fixed top-24 left-1/2 -translate-x-1/2 bg-white text-gray-800 px-6 py-3 rounded-lg shadow-lg z-50 text-center">
+                <p id="notification-message"></p>
+            </div>
+
+            <!-- Voice Recording Indicator -->
+            <div id="recording-indicator" class="hidden recording-indicator">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
+            </div>
+        </div>
+
+        <!-- SOS Button -->
+        <div class="absolute bottom-8 right-8 z-20">
+            <button id="sos-button" class="bg-red-600 text-white rounded-full p-6 shadow-2xl focus:outline-none focus:ring-4 focus:ring-red-400 focus:ring-opacity-75 animate-pulse-sos" aria-label="Emergency SOS">
+                <span class="text-2xl font-bold">SOS</span>
+            </button>
+        </div>
+
+    </div>
+
+    <script>
+        // --- Global Variables & Mock Data ---
+        let map;
+        let heatmap;
+        const KOTHAMANGALAM_COORDS = { lat: 10.0652, lng: 76.6291 };
+
+        // Mock data for buildings
+        const buildings = [
+            { id: 1, name: "Kothamangalam Public Library", address: "Main Rd, Kothamangalam", rating: 4.5, features: [{ name: "Wheelchair Ramp", icon: "♿" }, { name: "Accessible Restrooms", icon: "🚻" }], position: { lat: 10.0655, lng: 76.6285 } },
+            { id: 2, name: "City Hospital", address: "Park Ave, Kothamangalam", rating: 3.8, features: [{ name: "Wheelchair Ramp", icon: "♿" }, { name: "Braille Signage", icon: "📖" }], position: { lat: 10.0630, lng: 76.6310 } },
+            { id: 3, name: "Grand Shopping Mall", address: "Bypass Rd, Kothamangalam", rating: 2.5, features: [], position: { lat: 10.0680, lng: 76.6250 } },
+        ];
+        
+        // DOM Elements
+        const buildingDetailsPanel = document.getElementById('building-details');
+        const closeDetailsButton = document.getElementById('close-details');
+        const buildingName = document.getElementById('building-name');
+        const buildingRating = document.getElementById('building-rating');
+        const buildingAddress = document.getElementById('building-address');
+        const accessibilityFeatures = document.getElementById('accessibility-features');
+        const rateBuildingBtn = document.getElementById('rate-building-btn');
+        const ratingModal = document.getElementById('rating-modal');
+        const modalStarRating = document.getElementById('modal-star-rating');
+        const cancelRatingBtn = document.getElementById('cancel-rating');
+        const submitRatingBtn = document.getElementById('submit-rating');
+        const sosButton = document.getElementById('sos-button');
+        const notification = document.getElementById('notification');
+        const notificationMessage = document.getElementById('notification-message');
+        const voiceReportButton = document.getElementById('voice-report-button');
+        const recordingIndicator = document.getElementById('recording-indicator');
+
+        // --- Map Initialization ---
+        // This function is called by the Google Maps script once it has loaded.
+        function initMap() {
+            // Check for valid API key placeholder
+            const apiKey = getApiKeyFromScript();
+            if (apiKey === "YOUR_API_KEY") {
+                document.getElementById('map').innerHTML = `
+                    <div class="h-full w-full flex items-center justify-center bg-red-100 text-red-700 p-4">
+                        <p class="text-center"><strong>Error:</strong> Google Maps could not load. <br> Please provide a valid API key.</p>
+                    </div>`;
+                return;
+            }
+
+            map = new google.maps.Map(document.getElementById("map"), {
+                center: KOTHAMANGALAM_COORDS,
+                zoom: 15,
+                mapId: 'CIVICSHIELD_MAP_STYLE' // Using a Map ID for advanced styling
+            });
+
+            // Add building markers
+            buildings.forEach(building => {
+                const marker = new google.maps.Marker({
+                    position: building.position,
+                    map: map,
+                    title: building.name,
+                    icon: {
+                        url: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png"
+                    }
+                });
+                marker.addListener('click', () => {
+                    showBuildingDetails(building);
+                });
+            });
+
+            // FIX: Initialize heatmap data INSIDE initMap to ensure 'google' object is available.
+            const unsafeZoneData = [
+                { location: new google.maps.LatLng(10.0670, 76.6260), weight: 3 },
+                { location: new google.maps.LatLng(10.0672, 76.6265), weight: 2 },
+                { location: new google.maps.LatLng(10.0640, 76.6320), weight: 5 },
+                { location: new google.maps.LatLng(10.0641, 76.6322), weight: 4 },
+            ];
+
+            // Initialize and add heatmap layer
+            heatmap = new google.maps.visualization.HeatmapLayer({
+                data: unsafeZoneData,
+                map: map
+            });
+            heatmap.set('radius', 30);
+        }
+
+        // --- UI Functions ---
+
+        function showNotification(message, duration = 3000) {
+            notificationMessage.textContent = message;
+            notification.classList.remove('hidden');
+            setTimeout(() => {
+                notification.classList.add('hidden');
+            }, duration);
+        }
+
+        function showBuildingDetails(data) {
+            buildingName.textContent = data.name;
+            buildingAddress.textContent = data.address;
+
+            // Display star rating
+            buildingRating.innerHTML = '';
+            const starCount = Math.round(data.rating);
+            for (let i = 0; i < 5; i++) {
+                buildingRating.innerHTML += `<span class="${i < starCount ? 'text-yellow-500' : 'text-gray-300'} text-2xl">${i < starCount ? '★' : '☆'}</span>`;
+            }
+            buildingRating.innerHTML += `<span class="ml-2 text-gray-600 font-semibold">${data.rating.toFixed(1)}</span>`;
+
+            // Display accessibility features
+            accessibilityFeatures.innerHTML = '';
+            if (data.features.length > 0) {
+                data.features.forEach(feature => {
+                    accessibilityFeatures.innerHTML += `<div class="flex items-center bg-gray-100 p-2 rounded-md"><span class="text-2xl mr-3">${feature.icon}</span> <span>${feature.name}</span></div>`;
+                });
+            } else {
+                accessibilityFeatures.innerHTML = `<p class="text-gray-500">No specific accessibility features reported.</p>`;
+            }
+
+            buildingDetailsPanel.classList.remove('translate-y-full');
+        }
+
+        function hideBuildingDetails() {
+            buildingDetailsPanel.classList.add('translate-y-full');
+        }
+
+        // --- Rating Modal Logic ---
+        function setupRatingModal() {
+            modalStarRating.innerHTML = '';
+            for (let i = 1; i <= 5; i++) {
+                const star = document.createElement('span');
+                star.innerHTML = '☆';
+                star.className = 'text-4xl text-gray-300 cursor-pointer';
+                star.dataset.value = i;
+                modalStarRating.appendChild(star);
+            }
+
+            modalStarRating.addEventListener('mouseover', e => {
+                if (e.target.tagName === 'SPAN') {
+                    highlightStars(e.target.dataset.value);
+                }
+            });
+
+            modalStarRating.addEventListener('mouseout', () => {
+                const selected = modalStarRating.querySelector('.selected');
+                highlightStars(selected ? selected.dataset.value : 0);
+            });
+
+            modalStarRating.addEventListener('click', e => {
+                if (e.target.tagName === 'SPAN') {
+                    const stars = modalStarRating.querySelectorAll('span');
+                    stars.forEach(s => s.classList.remove('selected'));
+                    e.target.classList.add('selected');
+                    highlightStars(e.target.dataset.value);
+                }
+            });
+        }
+
+        function highlightStars(value) {
+            const stars = modalStarRating.querySelectorAll('span');
+            stars.forEach((star, index) => {
+                if (index < value) {
+                    star.innerHTML = '★';
+                    star.className = 'text-4xl text-yellow-500 cursor-pointer';
+                } else {
+                    star.innerHTML = '☆';
+                    star.className = 'text-4xl text-gray-300 cursor-pointer';
+                }
+            });
+        }
+
+        // --- Voice Reporting (Web Speech API) ---
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (SpeechRecognition) {
+            const recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.lang = 'en-US';
+
+            voiceReportButton.addEventListener('click', () => {
+                recognition.start();
+                recordingIndicator.classList.remove('hidden');
+                showNotification("Listening... Please state the issue and location.", 4000);
+            });
+
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                console.log("Voice input:", transcript);
+                // In a real app, you would process this transcript to identify the location and issue,
+                // then call a backend function to report it.
+                showNotification(`Reported: "${transcript}". Thank you!`, 5000);
+            };
+
+            recognition.onerror = (event) => {
+                console.error("Speech recognition error:", event.error);
+                showNotification("Sorry, I couldn't understand. Please try again.", 3000);
+            };
+            
+            recognition.onend = () => {
+                recordingIndicator.classList.add('hidden');
+            };
+
+        } else {
+            voiceReportButton.disabled = true;
+            console.warn("Speech Recognition not supported in this browser.");
+        }
+
+        // --- Helper function to get API key ---
+        function getApiKeyFromScript() {
+            const scripts = document.getElementsByTagName('script');
+            for (let i = 0; i < scripts.length; i++) {
+                const src = scripts[i].src;
+                if (src.includes('maps.googleapis.com')) {
+                    const keyParam = src.match(/key=([^&]*)/);
+                    return keyParam ? keyParam[1] : null;
+                }
+            }
+            return null;
+        }
+
+        // --- Event Listeners ---
+        closeDetailsButton.addEventListener('click', hideBuildingDetails);
+        
+        rateBuildingBtn.addEventListener('click', () => {
+            setupRatingModal();
+            ratingModal.classList.remove('hidden');
+        });
+
+        cancelRatingBtn.addEventListener('click', () => {
+            ratingModal.classList.add('hidden');
+        });
+
+        submitRatingBtn.addEventListener('click', () => {
+            // In a real app, this would send the rating to the backend.
+            const selectedStar = modalStarRating.querySelector('.selected');
+            const ratingValue = selectedStar ? selectedStar.dataset.value : 0;
+            console.log(`Rating submitted: ${ratingValue} stars`);
+            ratingModal.classList.add('hidden');
+            showNotification('Thank you for your rating!', 3000);
+        });
+        
+        sosButton.addEventListener('click', () => {
+            console.log('SOS Activated!');
+            // In a real app, this would get the user's current location and call the backend SOS function.
+            showNotification('SOS Activated! Notifying emergency contacts.', 5000);
+        });
+
+    </script>
+    <!-- 
+      IMPORTANT: 
+      Replace "YOUR_API_KEY" below with your actual Google Maps API key.
+      The map will not work without a valid key.
+    -->
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA73odP04FBUdGPGuziLw9jKUM6E8hXubs&callback=initMap&libraries=visualization"></script>
+
+</body>
+</html>
